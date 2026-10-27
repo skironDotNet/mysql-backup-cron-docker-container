@@ -83,8 +83,7 @@ while IFS= read -r db; do
         *\\*) echo 'ERROR: Database name contains unsupported escaped characters.' >&2; exit 1 ;;
     esac
     label=$(printf '%s' "$db" | sed 's/[^[:alnum:]_.-]/_/g')
-    hash=$(printf '%s' "$db" | sha256sum | cut -c1-12)
-    file="$BACKUP_DIR/${label}-${hash}.sql"
+    file="$BACKUP_DIR/db__${label}.sql"
 
     echo "Backing up database: $db"
     # No pipeline: a failed dump must not be masked by successful compression.
@@ -109,8 +108,7 @@ EOF_DATABASES
 while IFS= read -r db; do
     [ -n "$db" ] || continue
     label=$(printf '%s' "$db" | sed 's/[^[:alnum:]_.-]/_/g')
-    hash=$(printf '%s' "$db" | sha256sum | cut -c1-12)
-    file="$BACKUP_DIR/${label}-${hash}.sql.gz"
+    file="$BACKUP_DIR/db__${label}.sql.gz"
     mv -f "$file.tmp" "$file" || exit 1
     echo "Completed: $file"
 done <<EOF_DATABASES
