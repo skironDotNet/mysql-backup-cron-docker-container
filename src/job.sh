@@ -94,7 +94,8 @@ while IFS= read -r db; do
         echo "ERROR: mysqldump failed for: $db" >&2
         exit 1
     fi
-    if ! gzip -c "$file.tmp" > "$file.gz.tmp"; then
+    # Do not store the staging filename or timestamp in the gzip header.
+    if ! gzip -n -c "$file.tmp" > "$file.gz.tmp"; then
         echo "ERROR: Compression failed for: $db" >&2
         exit 1
     fi
