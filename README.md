@@ -88,9 +88,13 @@ that account. Configure appropriate privileges for your MySQL version.
   successful files. Historical retention is delegated to Kopia. Files belonging
   to databases subsequently dropped are not automatically deleted.
 - Rejects overlapping runs and records in-progress and failed markers.
-- Accounts, grants, server configuration, and binary logs are **not included**.
-  Provision accounts/grants separately, including accounts referenced by
-  DEFINER clauses in views, routines, triggers, and events.
+- Exports accounts, roles, grants, and default roles into `users.sql.gz`, using
+  `SHOW CREATE USER` and `SHOW GRANTS`. Includes authentication settings and
+  password hashes where present. MySQL's built-in `mysql.infoschema`,
+  `mysql.session`, and `mysql.sys` accounts are excluded.
+- Stages the account export as `users.sql.tmp` and `users.sql.gz.tmp`. An account
+  export failure prevents publication of the entire backup set.
+- Server configuration and binary logs are **not included**.
 - `--single-transaction` provides per-database consistency for InnoDB. Avoid
   schema changes during dumps. Nontransactional tables require a separate
   locking/maintenance strategy; different databases have separate snapshots.
@@ -106,12 +110,40 @@ Existing files using the old hash suffix are not renamed or deleted automaticall
 After verifying a successful backup with the new names, remove obsolete hashed
 files from the backup directory if they are no longer needed.
 
-Restore a dump by decompressing it first, checking success, then importing
-(adjust the path and restore account for your environment):
+## Restore
+
+Restore accounts first so users referenced by database objects' `DEFINER`
+clauses exist. Restore each database next, then apply grants and default roles:
+table- and routine-level grants can require the referenced objects to exist.
+Each database dump includes its own `CREATE DATABASE` and `USE` statements.
+
+Use an administrative restore account, not the read-only backup account. Adjust
+paths and connection settings for your environment:
+
+```sh
+gzip -dc /srv/backups/mysql/users.sql.gz > users.restore.sql &&
+sed '/^-- Grants and default roles/,$d' users.restore.sql > accounts.restore.sql &&
+mysql --defaults-extra-file=/run/secrets/mysql-client.cnf --host=mysql --user=root < accounts.restore.sql
+```
+
+For each database:
 
 ```sh
 gzip -dc /srv/backups/mysql/db__sales_europe.sql.gz > restore.sql &&
-mysql --defaults-extra-file=/run/secrets/mysql-client.cnf --host=mysql --user=backup_user < restore.sql
+mysql --defaults-extra-file=/run/secrets/mysql-client.cnf --host=mysql --user=root < restore.sql
+```
+
+`CREATE USER IF NOT EXISTS` preserves existing accounts and their passwords;
+grants are added, not reset to an exact copy. New accounts retain their exported
+authentication settings. Restore to a compatible MySQL version with the required
+authentication plugins available. Keep the account export protected like other
+backup files. Avoid changing accounts or grants while the export runs.
+
+After restoring all databases, import the full account export to apply grants
+and default roles. Existing accounts are skipped by `CREATE USER IF NOT EXISTS`:
+
+```sh
+mysql --defaults-extra-file=/run/secrets/mysql-client.cnf --host=mysql --user=root < users.restore.sql
 ```
 
 ## Kopia
@@ -135,6 +167,12 @@ CREATE USER 'backup_job'@'%' IDENTIFIED BY 'your_strong_password';
 
 GRANT SELECT, SHOW VIEW, TRIGGER, EVENT, LOCK TABLES
 ON *.* TO 'backup_job'@'%';
+
+GRANT SHOW_ROUTINE ON *.* TO 'backup_job'@'%';
 ```                                
 
-The account cannot modify data, but it can read all databases, including sensitive system tables.
+The account cannot modify data, but it can read all databases, including sensitive
+system tables. Global `SELECT` covers `mysql.user` and `mysql.default_roles`, and
+allows inspecting other accounts with `SHOW CREATE USER` and `SHOW GRANTS`.
+`SHOW_ROUTINE` allows exporting routine definitions on MySQL 8.0.20 and later.
+Account-export errors fail the backup rather than silently omitting users.
