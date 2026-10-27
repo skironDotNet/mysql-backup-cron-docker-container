@@ -3,7 +3,7 @@ set -u
 
 : "${MYSQL_HOST:=mysql}"
 : "${MYSQL_PORT:=3306}"
-: "${MYSQL_USER:=root}"
+: "${MYSQL_USER:=backup_job}"
 : "${BACKUP_DIR:=/backups}"
 
 # Prefer a mounted client option file for credentials. MYSQL_PWD is also

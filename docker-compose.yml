@@ -1,22 +1,26 @@
 services:
   mysql-backup:
-    build: ./src
     image: mysql-backup-cron
-    init: true
+    container_name: mysql-backup
     restart: unless-stopped
     environment:
-      SCHEDULE_EXPR: "0 3 * * *"
+      SCHEDULE_EXPR: "0 3 * * *" # adjust the cron job schedule here
       TZ: America/Chicago
-      MYSQL_HOST: mysql
+      MYSQL_HOST: mysql # assuming you run mysql as container, use your container name as hostname 
       MYSQL_PORT: "3306"
-      MYSQL_USER: root
+      MYSQL_USER: backup_job # create such user, or change it here
       MYSQL_PWD: ${MYSQL_BACKUP_PASSWORD:?Set MYSQL_BACKUP_PASSWORD in .env}
-      BACKUP_DIR: /backups
+      BACKUP_DIR: /backups # location in the container, leave as is
     volumes:
-      - /srv/backups/mysql:/backups
+      - /srv/backups/mysql:/backups # adjust your host dir location
     networks:
-      - mysql-network
+      - mysql-network # just an assumption. Use same netwrok where you host mysql server container
 
 networks:
-  mysql-network:
+  mysql-network: # just an assumption. Use same netwrok where you host mysql server container
     external: true
+
+# About network. May be a good idea to take this mysql-backup service and 
+# add it to your mysql server docker-compose.yml, this way can start the server 
+# and the backup cron from same command, they will both be automatically on the same network
+# so you can skip the `netwrok` sections

@@ -11,7 +11,7 @@ RUN chmod 0755 /job.sh /entrypoint.sh
 ENV SCHEDULE_EXPR="0 3 * * *" \
     MYSQL_HOST=mysql \
     MYSQL_PORT=3306 \
-    MYSQL_USER=root \
+    MYSQL_USER=backup_job \
     BACKUP_DIR=/backups \
     TZ=America/Chicago
 
