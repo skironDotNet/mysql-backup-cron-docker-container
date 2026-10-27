@@ -94,3 +94,16 @@ ensure the next backup cannot start while the snapshot is reading files.
 A hard kill or container crash can leave a stale `.mysql-backup.lock` directory
 or marker. Investigate before manually clearing them. A successful backup
 clears the failure marker.
+
+## backup user
+
+For **MySql v8+**, the simplest approach is to create a dedicated backup user.
+
+```
+CREATE USER 'backup_job'@'%' IDENTIFIED BY 'your_strong_password';
+
+GRANT SELECT, SHOW VIEW, TRIGGER, EVENT, LOCK TABLES
+ON *.* TO 'backup_job'@'%';
+```                                
+
+The account cannot modify data, but it can read all databases, including sensitive system tables.
