@@ -9,7 +9,7 @@ services:
       MYSQL_HOST: mysql # assuming you run mysql as container, use your container name as hostname 
       MYSQL_PORT: "3306"
       MYSQL_USER: backup_job # create such user, or change it here
-      MYSQL_PWD: ${MYSQL_BACKUP_PASSWORD:?Set MYSQL_BACKUP_PASSWORD in .env}
+      MYSQL_PWD: ${BACKUP_USER_PASSWORD:?Set BACKUP_USER_PASSWORD in .env}
       BACKUP_DIR: /backups # location in the container, leave as is
     volumes:
       - /srv/backups/mysql:/backups # adjust your host dir location
