@@ -1,7 +1,7 @@
 # MySQL backup cron container
 
 1. Adjust `MYSQL_HOST`, `MYSQL_USER`, network name, and backup host path in `docker-compose.yml`.
-2. Put `MYSQL_BACKUP_PASSWORD=your-password` in a local `.env` (never commit it).
+2. Put `BACKUP_USER_PASSWORD=your-password` in a local `.env` (never commit it).
 3. Verify the MySQL client image in `src/Dockerfile` is compatible with your server. The default is Oracle MySQL 8.4.
 4. Run `docker compose up -d --build`.
 5. Test immediately: `docker compose exec mysql-backup /job.sh`.
@@ -26,19 +26,22 @@ src/
 ```
 
 `src/job.sh` requires Oracle MySQL client tools (`mysql`, `mysqldump`), `gzip`,
-`sha256sum`, and standard POSIX shell utilities. Use clients compatible with
+and standard POSIX shell utilities. Use clients compatible with
 your server; this script is not intended for MariaDB client tools.
 
 Configuration:
 
-| Variable | Default |
-| --- | --- |
-| `MYSQL_HOST` | `mysql` |
-| `MYSQL_PORT` | `3306` |
-| `MYSQL_USER` | `root` |
-| `BACKUP_DIR` | `/backups` |
-| `MYSQL_DEFAULTS_EXTRA_FILE` | Optional client option file path |
-| `MYSQL_PWD` | Optional password environment variable |
+| Variable | Script default | Compose setting |
+| --- | --- | --- |
+| `MYSQL_HOST` | `mysql` | `mysql` |
+| `MYSQL_PORT` | `3306` | `3306` |
+| `MYSQL_USER` | `root` | `backup_job` |
+| `BACKUP_DIR` | `/backups` | `/backups`, mounted from `/srv/backups/mysql` |
+| `MYSQL_DEFAULTS_EXTRA_FILE` | Unset; optional client option file path | Unset |
+| `MYSQL_PWD` | Unset; optional client password environment variable | From `BACKUP_USER_PASSWORD` in `.env` |
+
+`BACKUP_USER_PASSWORD` is a Compose input, not a variable read by `job.sh`.
+`SCHEDULE_EXPR` and `TZ` configure scheduling in the container, not dump filenames.
 
 Prefer a protected mounted option file for the password:
 
@@ -63,7 +66,7 @@ that account. Configure appropriate privileges for your MySQL version.
   `performance_schema`.
 - Creates one compressed SQL dump per database, including CREATE DATABASE / USE
   statements, routines, events, and triggers.
-- Uses fixed, hashed filenames and stages all dumps before replacing previous
+- Uses fixed filenames, `db__<sanitized-database-name>.sql.gz`, and stages all dumps before replacing previous
   successful files. Historical retention is delegated to Kopia. Files belonging
   to databases subsequently dropped are not automatically deleted.
 - Rejects overlapping runs and records in-progress and failed markers.
@@ -76,11 +79,21 @@ that account. Configure appropriate privileges for your MySQL version.
 - GTID state is not included; these are logical restore backups, not replication
   provisioning or point-in-time recovery backups.
 
-Restore a dump by decompressing it first, checking success, then importing:
+Database names are sanitized by replacing characters other than letters, numbers,
+`_`, `.`, and `-` with `_`. For example, `sales europe` produces
+`db__sales_europe.sql.gz`. Staging files are `db__sales_europe.sql.tmp` and
+`db__sales_europe.sql.gz.tmp` inside `BACKUP_DIR`.
+
+Existing files using the old hash suffix are not renamed or deleted automatically.
+After verifying a successful backup with the new names, remove obsolete hashed
+files from the backup directory if they are no longer needed.
+
+Restore a dump by decompressing it first, checking success, then importing
+(adjust the path and restore account for your environment):
 
 ```sh
-gzip -dc database-HASH.sql.gz > restore.sql &&
-mysql --defaults-extra-file=/run/secrets/mysql-client.cnf --host=mysql --user=root < restore.sql
+gzip -dc /srv/backups/mysql/db__sales_europe.sql.gz > restore.sql &&
+mysql --defaults-extra-file=/run/secrets/mysql-client.cnf --host=mysql --user=backup_user < restore.sql
 ```
 
 ## Kopia
