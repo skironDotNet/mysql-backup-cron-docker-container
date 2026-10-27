@@ -3,13 +3,14 @@ services:
     image: mysql-backup-cron
     container_name: mysql-backup
     restart: unless-stopped
+    env_file:
+      - backup.env
     environment:
       SCHEDULE_EXPR: "0 3 * * *" # adjust the cron job schedule here
       TZ: America/Chicago
-      MYSQL_HOST: mysql # assuming you run mysql as container, use your container name as hostname 
+      MYSQL_HOST: mysql # assuming you run mysql as container, use your container name as hostname
       MYSQL_PORT: "3306"
-      MYSQL_USER: backup_job # create such user, or change it here
-      MYSQL_PWD: ${BACKUP_USER_PASSWORD:?Set BACKUP_USER_PASSWORD in .env}
+      MYSQL_USER: backup_job # create such user, or change it here, the MYSQL_PWD goes to backup.env
       BACKUP_DIR: /backups # location in the container, leave as is
     volumes:
       - /srv/backups/mysql:/backups # adjust your host dir location

@@ -1,7 +1,7 @@
 # MySQL backup cron container
 
 1. Adjust `MYSQL_HOST`, `MYSQL_USER`, network name, and backup host path in `docker-compose.yml`.
-2. Put `BACKUP_USER_PASSWORD=your-password` in a local `.env` (never commit it).
+2. Create `backup.env` alongside `docker-compose.yml` with `MYSQL_PWD=your-password` (never commit it). Compose loads this file into the container environment.
 3. Verify the MySQL client version is compatible with your server. The image uses `oraclelinux:9-slim` with Oracle MySQL 8.4 LTS client packages from the repository in `src/mysql-community.repo`.
 4. Run `docker compose up -d --build`.
 5. Test immediately: `docker compose exec mysql-backup /job.sh`.
@@ -56,9 +56,8 @@ Configuration:
 | `MYSQL_USER` | `root` | `backup_job` |
 | `BACKUP_DIR` | `/backups` | `/backups`, mounted from `/srv/backups/mysql` |
 | `MYSQL_DEFAULTS_EXTRA_FILE` | Unset; optional client option file path | Unset |
-| `MYSQL_PWD` | Unset; optional client password environment variable | From `BACKUP_USER_PASSWORD` in `.env` |
+| `MYSQL_PWD` | Unset; optional client password environment variable | From `backup.env` |
 
-`BACKUP_USER_PASSWORD` is a Compose input, not a variable read by `job.sh`.
 `SCHEDULE_EXPR` and `TZ` configure scheduling in the container, not dump filenames.
 
 Prefer a protected mounted option file for the password:
