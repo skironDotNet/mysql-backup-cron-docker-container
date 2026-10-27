@@ -2,7 +2,7 @@
 
 1. Adjust `MYSQL_HOST`, `MYSQL_USER`, network name, and backup host path in `docker-compose.yml`.
 2. Put `BACKUP_USER_PASSWORD=your-password` in a local `.env` (never commit it).
-3. Verify the MySQL client image in `src/Dockerfile` is compatible with your server. The default is Oracle MySQL 8.4.
+3. Verify the MySQL client version is compatible with your server. The image uses `oraclelinux:9-slim` with Oracle MySQL 8.4 LTS client packages from the repository in `src/mysql-community.repo`.
 4. Run `docker compose up -d --build`.
 5. Test immediately: `docker compose exec mysql-backup /job.sh`.
 6. Inspect `docker compose logs mysql-backup` and `/srv/backups/mysql`.
@@ -20,6 +20,7 @@ build.sh
 README.md
 src/
   Dockerfile
+  mysql-community.repo
   entrypoint.sh
   job.sh
   .kopiaignore
@@ -28,6 +29,23 @@ src/
 `src/job.sh` requires Oracle MySQL client tools (`mysql`, `mysqldump`), `gzip`,
 and standard POSIX shell utilities. Use clients compatible with
 your server; this script is not intended for MariaDB client tools.
+
+The image installs only the MySQL client and its dependencies, plus the cron and
+shell tools used by the backup scripts. It does not install the MySQL server.
+Package signature verification is enabled; weak dependencies and package
+documentation are omitted, and package caches are cleaned during the build.
+The build checks that `mysql` and `mysqldump` run and that `mysqld` is absent.
+
+Build and inspect the local image size:
+
+```sh
+./build.sh
+docker image inspect mysql-backup-cron --format '{{.Size}}'
+docker compose up -d --force-recreate
+```
+
+The reported size is in bytes; the exact size depends on current base-image and
+client package versions.
 
 Configuration:
 

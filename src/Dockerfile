@@ -1,8 +1,15 @@
-# Use Oracle MySQL clients compatible with your server.
-FROM mysql:8.4
+# Install Oracle MySQL clients without the database server.
+FROM oraclelinux:9-slim
 
 USER root
-RUN microdnf install -y cronie gzip coreutils tzdata && microdnf clean all
+COPY mysql-community.repo /etc/yum.repos.d/mysql-community.repo
+# The base image supplies coreutils-single; installing coreutils conflicts with it.
+RUN microdnf install -y --setopt=install_weak_deps=0 --setopt=tsflags=nodocs \
+        mysql-community-client bash cronie gzip sed tzdata \
+    && microdnf clean all \
+    && mysql --version \
+    && mysqldump --version \
+    && ! command -v mysqld
 
 COPY job.sh /job.sh
 COPY entrypoint.sh /entrypoint.sh
